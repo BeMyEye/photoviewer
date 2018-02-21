@@ -3,91 +3,154 @@
 #import <Cordova/CDV.h>
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <MobileCoreServices/MobileCoreServices.h>
 
-@interface PhotoViewer : CDVPlugin <UIDocumentInteractionControllerDelegate> {
-  // Member variables go here.
-    Boolean run;
+/*
+ pasky edition.
+ 1/9/2016
+ */
+
+@interface PhotoViewer : CDVPlugin <UIScrollViewDelegate>
+{
+    UIImageView  *_imgv;
+    UIScrollView *_scrollView;
+    UIViewController *_vc;
 }
 
-@property (nonatomic, strong) UIDocumentInteractionController *docInteractionController;
+@property (nonatomic, strong) UINavigationController *previewViewController;
 @property (nonatomic, strong) NSMutableArray *documentURLs;
 
 - (void)show:(CDVInvokedUrlCommand*)command;
+
 @end
 
 @implementation PhotoViewer
 
 - (void)setupDocumentControllerWithURL:(NSURL *)url andTitle:(NSString *)title
 {
-    if (self.docInteractionController == nil) {
-        self.docInteractionController = [UIDocumentInteractionController interactionControllerWithURL:url];
-        self.docInteractionController.name = title;
-        self.docInteractionController.delegate = self;
+    _vc                        = [[UIViewController alloc] init];
+    _vc.view.backgroundColor   = [UIColor whiteColor];
+    self.previewViewController = [[UINavigationController alloc] initWithRootViewController:_vc];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationChanged) name:UIDeviceOrientationDidChangeNotification object:nil];
+}
+
+- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
+    return _imgv;
+}
+
+-(void)scrollViewDidZoom:(UIScrollView *)scrollView {
+    _imgv.frame = [self centeredFrameForScrollView:_scrollView andUIView:_imgv];
+}
+
+- (CGRect)centeredFrameForScrollView:(UIScrollView *)scroll andUIView:(UIView *)rView {
+    CGSize boundsSize    = scroll.bounds.size;
+    CGRect frameToCenter = rView.frame;
+
+    if (frameToCenter.size.width < boundsSize.width) {
+        frameToCenter.origin.x = (boundsSize.width - frameToCenter.size.width) / 2;
     } else {
-        self.docInteractionController.name = title;
-        self.docInteractionController.URL = url;
+        frameToCenter.origin.x = 0;
     }
+
+    if (frameToCenter.size.height < boundsSize.height) {
+        frameToCenter.origin.y = (boundsSize.height - frameToCenter.size.height) / 2;
+    } else {
+        frameToCenter.origin.y = 0;
+    }
+
+    return frameToCenter;
 }
 
-- (UIDocumentInteractionController *) setupControllerWithURL: (NSURL*) fileURL
-                                               usingDelegate: (id <UIDocumentInteractionControllerDelegate>) interactionDelegate {
-
-    UIDocumentInteractionController *interactionController = [UIDocumentInteractionController interactionControllerWithURL: fileURL];
-    interactionController.delegate = interactionDelegate;
-
-    return interactionController;
+- (void) updateZoom {
+    float zoomScale = MIN(_scrollView.bounds.size.width / _imgv.image.size.width, _scrollView.bounds.size.height / _imgv.image.size.height);
+    if (zoomScale > 1) {
+        _scrollView.minimumZoomScale = 1;
+    }
+    _scrollView.minimumZoomScale = zoomScale;
+    _scrollView.zoomScale = zoomScale;
 }
 
-- (UIViewController *) documentInteractionControllerViewControllerForPreview:(UIDocumentInteractionController *) controller {
-    run = false;
-    return self.viewController;
+- (void) orientationChanged {
+    _imgv.frame = [self centeredFrameForScrollView:_scrollView andUIView:_imgv];
+    [self updateZoom];
+}
+
+- (void) closeMe {
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIDeviceOrientationDidChangeNotification object:nil];
+    [self.viewController dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (void)show:(CDVInvokedUrlCommand*)command
 {
-    if (run == false) {
-        run = true;
-        UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithFrame:self.viewController.view.frame];
-        [activityIndicator setActivityIndicatorViewStyle:UIActivityIndicatorViewStyleWhiteLarge];
-        [activityIndicator.layer setBackgroundColor:[[UIColor colorWithWhite:0.0 alpha:0.30] CGColor]];
-        CGPoint center = self.viewController.view.center;
-        activityIndicator.center = center;
-        [self.viewController.view addSubview:activityIndicator];
-        
-        [activityIndicator startAnimating];
-        
-        
-        CDVPluginResult* pluginResult = nil;
-        NSString* url = [command.arguments objectAtIndex:0];
-        NSString* title = [command.arguments objectAtIndex:1];
+    UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithFrame:self.viewController.view.frame];
+    [activityIndicator setActivityIndicatorViewStyle:UIActivityIndicatorViewStyleWhiteLarge];
+    [activityIndicator.layer setBackgroundColor:[[UIColor colorWithWhite:0.0 alpha:0.30] CGColor]];
+    CGPoint center = self.viewController.view.center;
+    activityIndicator.center = center;
+    [self.viewController.view addSubview:activityIndicator];
+    
+    [activityIndicator startAnimating];
 
-        if (url != nil && [url length] > 0) {
-            [self.commandDelegate runInBackground:^{
-                self.documentURLs = [NSMutableArray array];
+    CDVPluginResult* pluginResult = nil;
+    NSString* url = [command.arguments objectAtIndex:0];
+    NSString* title = [command.arguments objectAtIndex:1];
 
-                NSURL *URL = [self localFileURLForImage:url];
+    if (url != nil && [url length] > 0) {
+        [self.commandDelegate runInBackground:^{
+            self.documentURLs = [NSMutableArray array];
 
-                if (URL) {
-                    [self.documentURLs addObject:URL];
-                    [self setupDocumentControllerWithURL:URL andTitle:title];
-                    double delayInSeconds = 0.1;
-                    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
-                    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-                        [activityIndicator stopAnimating];
-                        [self.docInteractionController presentPreviewAnimated:YES];
-                        //[self.docInteractionController presentPreviewAnimated:NO];
-                        
-                    });
-                }
-            }];
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        } else {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
-        }
+            NSURL *URL = [self localFileURLForImage:url];
 
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            if (URL) {
+                [self.documentURLs addObject:URL];
+                [self setupDocumentControllerWithURL:URL andTitle:title];
+                double delayInSeconds = 0.1;
+                dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+                dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+                    [activityIndicator stopAnimating];
+
+                    _imgv = [[UIImageView alloc] initWithImage:
+                             [UIImage imageWithData:
+                              [NSData dataWithContentsOfURL:URL]]];
+
+                    CGRect svFrame = _vc.view.frame;
+                    svFrame.origin.y    += 65;
+                    svFrame.size.height -= 65;
+
+                    _scrollView = [[UIScrollView alloc] initWithFrame:svFrame];
+                    _scrollView.contentSize = svFrame.size;
+                    _scrollView.showsVerticalScrollIndicator = YES;
+                    _scrollView.showsHorizontalScrollIndicator = YES;
+                    _scrollView.scrollEnabled = YES;
+                    _scrollView.maximumZoomScale = 5.0f;
+                    _scrollView.delegate = self;
+                    _scrollView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin |
+                    UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin |
+                    UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+
+                    [_scrollView addSubview:_imgv];
+
+                    [self.previewViewController.view addSubview:_scrollView];
+
+                    UIBarButtonItem *closeButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(closeMe)];
+                    self.previewViewController.navigationItem.leftBarButtonItem = closeButton;
+                    _vc.navigationItem.leftBarButtonItem = closeButton;
+
+                    [self updateZoom];
+
+                    [self.viewController presentViewController:self.previewViewController animated:YES completion:nil];
+                });
+            }
+        }];
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    } else {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
     }
+
+    [activityIndicator stopAnimating];
+    [activityIndicator removeFromSuperview];
+
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 - (NSURL *)localFileURLForImage:(NSString *)image
@@ -95,20 +158,14 @@
     // save this image to a temp folder
     NSURL *tmpDirURL = [NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory:YES];
     NSString *filename = [[NSUUID UUID] UUIDString];
-    
-    
-    
+
     NSString* webStringURL = [image stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
     NSURL* fileURL = [NSURL URLWithString:webStringURL];
-    
-    
-    //NSURL *fileURL = [NSURL URLWithString:webStringURL];
-    
     
     if ([fileURL isFileReferenceURL]) {
         return fileURL;
     }
-    
+
     NSData *data = [NSData dataWithContentsOfURL:fileURL];
 
     if( data ) {
