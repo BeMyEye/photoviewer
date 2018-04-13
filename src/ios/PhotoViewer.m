@@ -117,6 +117,14 @@
                     svFrame.origin.y    += 65;
                     svFrame.size.height -= 65;
 
+                    // Remove top padding for iPhone X 
+                    if (@available(iOS 11.0, *)) {
+                        UIWindow *window = UIApplication.sharedApplication.keyWindow;
+                        CGFloat topPadding = window.safeAreaInsets.top;
+                        svFrame.origin.y += topPadding;
+                        svFrame.size.height -= topPadding;
+                    }
+
                     _scrollView = [[UIScrollView alloc] initWithFrame:svFrame];
                     _scrollView.contentSize = svFrame.size;
                     _scrollView.showsVerticalScrollIndicator = YES;
