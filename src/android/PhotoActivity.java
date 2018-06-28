@@ -31,8 +31,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import android.support.media.ExifInterface;
-
+import android.media.ExifInterface;
 
 public class PhotoActivity extends Activity {
 	private PhotoViewAttacher mAttacher;
@@ -60,14 +59,14 @@ public class PhotoActivity extends Activity {
 		try {
 			options = new JSONObject(this.getIntent().getStringExtra("options"));
 			shareBtnVisibility = options.getBoolean("share") ? View.VISIBLE : View.INVISIBLE;
-		} catch(JSONException exception) {
+		} catch (JSONException exception) {
 			shareBtnVisibility = View.VISIBLE;
 		}
 		shareBtn.setVisibility(shareBtnVisibility);
 
 		// Change the Activity Title
 		String actTitle = this.getIntent().getStringExtra("title");
-		if( !actTitle.equals("") ) {
+		if (!actTitle.equals("")) {
 			titleTxt.setText(actTitle);
 		}
 
@@ -85,12 +84,12 @@ public class PhotoActivity extends Activity {
 				Uri bmpUri = getLocalBitmapUri(photo);
 
 				if (bmpUri != null) {
-				    Intent sharingIntent = new Intent(Intent.ACTION_SEND);
+					Intent sharingIntent = new Intent(Intent.ACTION_SEND);
 
-				    sharingIntent.setType("image/*");
-				    sharingIntent.putExtra(Intent.EXTRA_STREAM, bmpUri);
+					sharingIntent.setType("image/*");
+					sharingIntent.putExtra(Intent.EXTRA_STREAM, bmpUri);
 
-				    startActivity(Intent.createChooser(sharingIntent, "Share"));
+					startActivity(Intent.createChooser(sharingIntent, "Share"));
 				}
 			}
 		});
@@ -131,7 +130,7 @@ public class PhotoActivity extends Activity {
 	private void hideLoadingAndUpdate() {
 		photo.setVisibility(View.VISIBLE);
 
-        shareBtn.setVisibility(shareBtnVisibility);
+		shareBtn.setVisibility(shareBtnVisibility);
 
 		mAttacher.update();
 	}
@@ -154,18 +153,18 @@ public class PhotoActivity extends Activity {
 				.fit()
 				.centerInside()
 				.into(photo, new com.squareup.picasso.Callback() {
-					@Override
-					public void onSuccess() {
-						hideLoadingAndUpdate();
-					}
+			@Override
+			public void onSuccess() {
+				hideLoadingAndUpdate();
+			}
 
-					@Override
-					public void onError() {
-						Toast.makeText(getActivity(), "Error loading image.", Toast.LENGTH_LONG).show();
+			@Override
+			public void onError() {
+				Toast.makeText(getActivity(), "Error loading image.", Toast.LENGTH_LONG).show();
 
-						finish();
-					}
-				});
+				finish();
+			}
+		});
 	}
 
 	/**
@@ -179,7 +178,7 @@ public class PhotoActivity extends Activity {
 		Drawable drawable = imageView.getDrawable();
 		Bitmap bmp = null;
 
-		if (drawable instanceof BitmapDrawable){
+		if (drawable instanceof BitmapDrawable) {
 			bmp = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
 		} else {
 			return null;
@@ -225,7 +224,7 @@ public class PhotoActivity extends Activity {
 
 			ExifInterface exif = null;
 			try {
-					exif = new ExifInterface(new ByteArrayInputStream(bytes));
+				exif = new ExifInterface(new ByteArrayInputStream(bytes));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -234,7 +233,7 @@ public class PhotoActivity extends Activity {
 
 
 			Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-			if(orientation != 0){
+			if (orientation != 0) {
 				bitmap = rotateBitmap(bitmap, orientation);
 			}
 			if (bitmap == null) return null;
@@ -247,34 +246,34 @@ public class PhotoActivity extends Activity {
 
 		Matrix matrix = new Matrix();
 		switch (orientation) {
-			case ExifInterface.ORIENTATION_NORMAL:
-				return bitmap;
-			case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
-				matrix.setScale(-1, 1);
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_180:
-				matrix.setRotate(180);
-				break;
-			case ExifInterface.ORIENTATION_FLIP_VERTICAL:
-				matrix.setRotate(180);
-				matrix.postScale(-1, 1);
-				break;
-			case ExifInterface.ORIENTATION_TRANSPOSE:
-				matrix.setRotate(90);
-				matrix.postScale(-1, 1);
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_90:
-				matrix.setRotate(90);
-				break;
-			case ExifInterface.ORIENTATION_TRANSVERSE:
-				matrix.setRotate(-90);
-				matrix.postScale(-1, 1);
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_270:
-				matrix.setRotate(-90);
-				break;
-			default:
-				return bitmap;
+		case ExifInterface.ORIENTATION_NORMAL:
+			return bitmap;
+		case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+			matrix.setScale(-1, 1);
+			break;
+		case ExifInterface.ORIENTATION_ROTATE_180:
+			matrix.setRotate(180);
+			break;
+		case ExifInterface.ORIENTATION_FLIP_VERTICAL:
+			matrix.setRotate(180);
+			matrix.postScale(-1, 1);
+			break;
+		case ExifInterface.ORIENTATION_TRANSPOSE:
+			matrix.setRotate(90);
+			matrix.postScale(-1, 1);
+			break;
+		case ExifInterface.ORIENTATION_ROTATE_90:
+			matrix.setRotate(90);
+			break;
+		case ExifInterface.ORIENTATION_TRANSVERSE:
+			matrix.setRotate(-90);
+			matrix.postScale(-1, 1);
+			break;
+		case ExifInterface.ORIENTATION_ROTATE_270:
+			matrix.setRotate(-90);
+			break;
+		default:
+			return bitmap;
 		}
 		try {
 			Bitmap bmRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
