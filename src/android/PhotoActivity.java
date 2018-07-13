@@ -31,7 +31,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import android.media.ExifInterface;
+import android.support.media.ExifInterface;
+
 
 public class PhotoActivity extends Activity {
 	private PhotoViewAttacher mAttacher;
@@ -59,14 +60,14 @@ public class PhotoActivity extends Activity {
 		try {
 			options = new JSONObject(this.getIntent().getStringExtra("options"));
 			shareBtnVisibility = options.getBoolean("share") ? View.VISIBLE : View.INVISIBLE;
-		} catch (JSONException exception) {
+		} catch(JSONException exception) {
 			shareBtnVisibility = View.VISIBLE;
 		}
 		shareBtn.setVisibility(shareBtnVisibility);
 
 		// Change the Activity Title
 		String actTitle = this.getIntent().getStringExtra("title");
-		if (!actTitle.equals("")) {
+		if( !actTitle.equals("") ) {
 			titleTxt.setText(actTitle);
 		}
 
@@ -153,18 +154,18 @@ public class PhotoActivity extends Activity {
 				.fit()
 				.centerInside()
 				.into(photo, new com.squareup.picasso.Callback() {
-			@Override
-			public void onSuccess() {
-				hideLoadingAndUpdate();
-			}
+					@Override
+					public void onSuccess() {
+						hideLoadingAndUpdate();
+					}
 
-			@Override
-			public void onError() {
-				Toast.makeText(getActivity(), "Error loading image.", Toast.LENGTH_LONG).show();
+					@Override
+					public void onError() {
+						Toast.makeText(getActivity(), "Error loading image.", Toast.LENGTH_LONG).show();
 
-				finish();
-			}
-		});
+						finish();
+					}
+				});
 	}
 
 	/**
@@ -178,7 +179,7 @@ public class PhotoActivity extends Activity {
 		Drawable drawable = imageView.getDrawable();
 		Bitmap bmp = null;
 
-		if (drawable instanceof BitmapDrawable) {
+		if (drawable instanceof BitmapDrawable){
 			bmp = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
 		} else {
 			return null;
@@ -189,7 +190,7 @@ public class PhotoActivity extends Activity {
 		try {
 			File file =  new File(
 					Environment.getExternalStoragePublicDirectory(
-						Environment.DIRECTORY_DOWNLOADS
+							Environment.DIRECTORY_DOWNLOADS
 					), "share_image_" + System.currentTimeMillis() + ".png");
 
 			file.getParentFile().mkdirs();
@@ -232,8 +233,14 @@ public class PhotoActivity extends Activity {
 					ExifInterface.ORIENTATION_UNDEFINED);
 
 
-			Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-			if (orientation != 0) {
+			BitmapFactory.Options options = new BitmapFactory.Options();
+			options.inJustDecodeBounds = true;
+			BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+			options.inSampleSize = calculateInSampleSize(options, photo.getHeight(), photo.getWidth());
+			options.inJustDecodeBounds = false;
+
+			Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+			if(orientation != 0){
 				bitmap = rotateBitmap(bitmap, orientation);
 			}
 			if (bitmap == null) return null;
@@ -246,34 +253,34 @@ public class PhotoActivity extends Activity {
 
 		Matrix matrix = new Matrix();
 		switch (orientation) {
-		case ExifInterface.ORIENTATION_NORMAL:
-			return bitmap;
-		case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
-			matrix.setScale(-1, 1);
-			break;
-		case ExifInterface.ORIENTATION_ROTATE_180:
-			matrix.setRotate(180);
-			break;
-		case ExifInterface.ORIENTATION_FLIP_VERTICAL:
-			matrix.setRotate(180);
-			matrix.postScale(-1, 1);
-			break;
-		case ExifInterface.ORIENTATION_TRANSPOSE:
-			matrix.setRotate(90);
-			matrix.postScale(-1, 1);
-			break;
-		case ExifInterface.ORIENTATION_ROTATE_90:
-			matrix.setRotate(90);
-			break;
-		case ExifInterface.ORIENTATION_TRANSVERSE:
-			matrix.setRotate(-90);
-			matrix.postScale(-1, 1);
-			break;
-		case ExifInterface.ORIENTATION_ROTATE_270:
-			matrix.setRotate(-90);
-			break;
-		default:
-			return bitmap;
+			case ExifInterface.ORIENTATION_NORMAL:
+				return bitmap;
+			case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+				matrix.setScale(-1, 1);
+				break;
+			case ExifInterface.ORIENTATION_ROTATE_180:
+				matrix.setRotate(180);
+				break;
+			case ExifInterface.ORIENTATION_FLIP_VERTICAL:
+				matrix.setRotate(180);
+				matrix.postScale(-1, 1);
+				break;
+			case ExifInterface.ORIENTATION_TRANSPOSE:
+				matrix.setRotate(90);
+				matrix.postScale(-1, 1);
+				break;
+			case ExifInterface.ORIENTATION_ROTATE_90:
+				matrix.setRotate(90);
+				break;
+			case ExifInterface.ORIENTATION_TRANSVERSE:
+				matrix.setRotate(-90);
+				matrix.postScale(-1, 1);
+				break;
+			case ExifInterface.ORIENTATION_ROTATE_270:
+				matrix.setRotate(-90);
+				break;
+			default:
+				return bitmap;
 		}
 		try {
 			Bitmap bmRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
@@ -284,6 +291,38 @@ public class PhotoActivity extends Activity {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	/**
+	 * Figure out what ratio we can load our image into memory at while still being bigger than
+	 * our desired width and height
+	 *
+	 * @param options
+	 * @param reqWidth
+	 * @param reqHeight
+	 * @return
+	 */
+	private static int calculateInSampleSize(
+			BitmapFactory.Options options, int reqWidth, int reqHeight) {
+		// Raw height and width of image
+		final int height = options.outHeight;
+		final int width = options.outWidth;
+		int inSampleSize = 1;
+
+		if (height > reqHeight || width > reqWidth) {
+
+			final int halfHeight = height / 2;
+			final int halfWidth = width / 2;
+
+			// Calculate the largest inSampleSize value that is a power of 2 and keeps both
+			// height and width larger than the requested height and width.
+			while ((halfHeight / inSampleSize) >= reqHeight
+					&& (halfWidth / inSampleSize) >= reqWidth) {
+				inSampleSize *= 2;
+			}
+		}
+
+		return inSampleSize;
 	}
 
 }
