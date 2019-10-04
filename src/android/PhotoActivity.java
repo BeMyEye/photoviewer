@@ -198,7 +198,14 @@ public class PhotoActivity extends Activity {
      * Load the image using Picasso
      */
     private void loadImage() throws JSONException {
+        /**
+        We don't want to handle file:// image with picasso, because it is bugged
+        Replace 
         if (mImage.startsWith("http") || mImage.startsWith("file")) {
+        With 
+        if (mImage.startsWith("http")) {
+         */
+        if (mImage.startsWith("http")) {
             Picasso picasso;
             if (mHeaders == null) {
                 picasso = Picasso.with(PhotoActivity.this);
